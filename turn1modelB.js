@@ -1,97 +1,74 @@
-// Base sensor component
+// Abstract Sensor class
 class Sensor {
-    constructor(id) {
-        this.id = id;
+    constructor(type, data) {
+        this.type = type;
+        this.data = data;
     }
 
-    readData() {
-        // Simulate reading sensor data
-        return Math.random(); // Replace with actual sensor read logic
-    }
-}
-
-class DataProcessor {
-    constructor(dataProcessor) {
-        this.dataProcessor = dataProcessor;
-    }
-
-    async process(data) {
-        // Override this method in subclasses
-        return data;
+    getValue() {
+        return this.data.value;
     }
 }
 
-class NoiseReductionProcessor extends DataProcessor {
-    async process(data) {
-        // Implement noise reduction logic here
-        const smoothedData = data.map((reading) => {
-            // Simple smoothing example
-            return reading - (reading * 0.05);
-        });
-
-        return smoothedData;
+// Concrete sensor classes (VoltageSensor and CurrentSensor) extending Sensor
+class VoltageSensor extends Sensor {
+    constructor(data) {
+        super('voltage', data);
     }
 }
 
-class TrendAnalysisProcessor extends DataProcessor {
-    async process(data) {
-        // Implement trend analysis logic here
-        // For simplicity, let's just calculate the average
-        const average = data.reduce((sum, reading) => sum + reading, 0) / data.length;
-
-        return data.map((reading) => reading - average);
+class CurrentSensor extends Sensor {
+    constructor(data) {
+        super('current', data);
     }
 }
 
-class AnomalyDetectionProcessor extends DataProcessor {
-    async process(data) {
-        // Implement anomaly detection using statistical methods (e.g., Z-score)
-        const mean = data.reduce((sum, reading) => sum + reading, 0) / data.length;
-        const standardDeviation = Math.sqrt(
-            data.reduce((sum, reading) => sum + Math.pow(reading - mean, 2), 0) / data.length
-        );
-
-        const anomalies = data.map((reading) => {
-            const zScore = (reading - mean) / standardDeviation;
-            // Define your anomaly threshold (e.g., 3 standard deviations)
-            return Math.abs(zScore) > 3 ? 'Anomaly' : 'Normal';
-        });
-
-        return anomalies;
-    }
-}
-
-class SmartGridMonitor {
+// Latent Variable Model (LVM) class
+class LatentVariableModel {
     constructor() {
-        this.sensors = [];
-        this.dataProcessingPipeline = [
-            new NoiseReductionProcessor(),
-            new TrendAnalysisProcessor(),
-            new AnomalyDetectionProcessor(),
-        ];
+        this.lastPrediction = null;
+    }
+
+    predict(sensorReading) {
+        // Simple LVM prediction: Just store the last reading as the prediction
+        this.lastPrediction = sensorReading.getValue();
+        return this.lastPrediction;
+    }
+
+    getPrediction() {
+        return this.lastPrediction;
+    }
+}
+
+// Sensor Reader class
+class SensorReader {
+    constructor() {
+        this.sensors = new Map();
+        this.lvm = new LatentVariableModel();
     }
 
     addSensor(sensor) {
-        this.sensors.push(sensor);
+        // Add a sensor to the internal map using its type as the key
+        this.sensors.set(sensor.type, sensor);
     }
 
-    async runMonitoring() {
-        setInterval(async () => {
-            const readings = this.sensors.map(sensor => sensor.readData());
-            const processedData = await this.processData(readings);
-            console.log(processedData); // Handle processed data accordingly
-        }, 1000); // Adjust for real-time requirements
-    }
+    processSensorReading(reading) {
+        // Process a new sensor reading
+        const sensorType = reading.sensorType;
+        const sensor = this.sensors.get(sensorType);
 
-    async processData(data) {
-        for (const processor of this.dataProcessingPipeline) {
-            data = await processor.process(data);
+        if (sensor) {
+            sensor.data = reading;
+            const prediction = this.lvm.predict(sensor);
+            console.log(`Prediction: ${prediction}`);
+        } else {
+            console.warn(`Sensor type '${sensorType}' not recognized.`);
         }
-        return data;
     }
 }
 
-const monitor = new SmartGridMonitor();
-monitor.addSensor(new Sensor('Sensor1'));
-monitor.addSensor(new Sensor('Sensor2'));
-monitor.runMonitoring();
+const sensorReader = new SensorReader();
+
+// Add voltage and current sensors
+sensorReader.addSensor(new VoltageSensor({ sensorType: 'voltage', value: 120 }));
+sensorReader.addSensor(new CurrentSensor({ sensorType: 'current', value: 10 }));
